@@ -1,4 +1,6 @@
 # Dockerfile for Next.js frontend
+#docker file ma hum change kiya hau
+
 FROM node:20-alpine
 
 WORKDIR /app
