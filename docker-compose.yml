@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  model_service:
+    build:
+      context: "./Python Backend/model_service"
+      dockerfile: Dockerfile
+    container_name: model_service
+    ports:
+      - "8000:8000"
+    networks:
+      - career-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]  # Updated to use /health endpoint
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s  # Give model time to load
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G  # Model service needs more memory
+        reservations:
+          memory: 1G
+
+  orchestrator_service:
+    build:
+      context: "./Python Backend/orchestrator"
+      dockerfile: Dockerfile
+    container_name: orchestrator_service
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - MODEL_SERVICE_URL=http://model_service:8000
+    env_file:
+      - .env  # Load environment variables from .env file
+    ports:
+      - "8080:8080"
+    depends_on:
+      model_service:
+        condition: service_healthy
+    networks:
+      - career-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]  # Updated to use /health endpoint
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      orchestrator_service:
+        condition: service_healthy
+    networks:
+      - career-network
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080  # Fixed: Frontend should connect to host, not container name
+      - NODE_ENV=development
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next  # Cache Next.js build files
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+networks:
+  career-network:
+    driver: bridge
+    name: career-network  # Explicit network name
