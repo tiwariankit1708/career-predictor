@@ -1,4 +1,4 @@
-# AI Career Predictor
+## AI Career Predictor
 
 Next.js frontend application for AI-powered career guidance and interview preparation.
 
